@@ -175,9 +175,10 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
   <div class="modal">
     <h3>Scan to Join</h3>
     <canvas id="qr-canvas"></canvas>
+    <div id="qr-fallback" style="display:none;font-family:var(--f);font-size:0.65rem;word-break:break-all;background:#eee;padding:0.5rem;margin:0.5rem 0;color:#333;"></div>
     <div class="modal-code" id="qr-code-display"></div>
     <div class="modal-hint">Paste this code on the join screen</div>
-    <button class="modal-close" onclick="document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
+    <button class="modal-close" onclick="var c=document.getElementById('qr-canvas');c.getContext('2d').clearRect(0,0,c.width,c.height);document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
   </div>
 </div>
 
@@ -1249,19 +1250,29 @@ function openQR() {
   document.getElementById('qr-code-display').textContent = code;
   document.getElementById('qr-modal').querySelector('.modal-hint').textContent = 'Or enter code ' + code + ' on the join screen';
   modal.classList.add('open');
-  requestAnimationFrame(function() {
-    requestAnimationFrame(function() {
-      var canvas = document.getElementById('qr-canvas');
-      if (typeof QRCode !== 'undefined') {
-        QRCode.toCanvas(canvas, url, {
-          width: 180, margin: 2,
-          color: { dark: '#111111', light: '#f5f0e8' }
-        }, function(err) {
-          if (err) { console.error('QR error:', err); canvas.style.display = 'none'; }
-        });
-      }
-    });
-  });
+  // Use setTimeout to guarantee modal is painted before canvas draws
+  setTimeout(function() {
+    var canvas = document.getElementById('qr-canvas');
+    // Clear any previous QR
+    var ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(canvas, url, {
+        width: 200, margin: 2,
+        color: { dark: '#000000', light: '#f0ece0' }
+      }, function(err) {
+        if (err) {
+          console.error('QR error:', err);
+          // Fallback: show the URL as text
+          canvas.style.display = 'none';
+          var fb = document.getElementById('qr-fallback');
+          if (fb) { fb.style.display = 'block'; fb.textContent = url; }
+        } else {
+          canvas.style.display = 'block';
+        }
+      });
+    }
+  }, 100);
   modal.onclick = function(e) { if (e.target === modal) modal.classList.remove('open'); };
 }
 
