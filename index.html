@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SHIT LIST</title>
+<!-- PeerJS MUST be in head, no defer, no async -->
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --black: #000; --white: #f0ece0; --gray: #888; --dim: #111;
+  --f: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+html, body { height: 100%; background: var(--black); color: var(--white); font-family: var(--f); overflow-x: hidden; }
+body::after { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E"); pointer-events:none; z-index:9999; opacity:0.5; }
+.screen { display:none; flex-direction:column; min-height:100dvh; padding:1.2rem; gap:0.9rem; max-width:560px; margin:0 auto; }
+.screen.active { display:flex; }
+@media (min-width: 600px) {
+  body { font-size: 125%; }
+  .screen { padding: 2rem 2.5rem; max-width: 640px; }
+}
+/* LOGO */
+.logo { font-family:var(--f); font-weight:900; line-height:0.85; letter-spacing:-0.02em; text-transform:uppercase; }
+.logo .s, .logo .l { color:var(--white); display:block; }
+/* CARDS */
+.black-card { background:var(--black); border:3px solid var(--white); padding:1.2rem; position:relative; }
+.black-card .cb { font-size:1.1rem; font-weight:700; line-height:1.5; }
+.black-card .cc { position:absolute; bottom:0.6rem; right:0.8rem; font-size:0.55rem; letter-spacing:0.15em; color:#444; text-transform:uppercase; font-weight:700; }
+/* FIELDS */
+.field { margin-bottom:0.7rem; }
+.field label { display:block; font-weight:700; font-size:0.7rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--gray); margin-bottom:0.3rem; }
+.field input { width:100%; border:3px solid var(--white); background:var(--black); color:var(--white); font-family:var(--f); font-weight:700; font-size:1.1rem; padding:0.6rem 0.8rem; outline:none; transition:box-shadow 0.1s; }
+.field input:focus { box-shadow:4px 4px 0 var(--white); }
+/* BUTTONS */
+.btn { font-family:var(--f); font-weight:900; font-size:1.1rem; letter-spacing:0.04em; text-transform:uppercase; padding:0.8rem 1rem; border:3px solid; cursor:pointer; transition:transform 0.07s, box-shadow 0.07s; width:100%; display:block; }
+.btn:active { transform:translate(3px,3px) !important; box-shadow:none !important; }
+.btn-white { background:var(--white); color:var(--black); border-color:var(--white); box-shadow:4px 4px 0 #666; }
+.btn-white:hover { box-shadow:6px 6px 0 #444; }
+.btn-inv { background:var(--black); color:var(--white); border-color:var(--white); box-shadow:4px 4px 0 #666; }
+.btn-inv:hover { box-shadow:6px 6px 0 #444; }
+.btn-ghost { background:transparent; color:var(--white); border-color:#555; box-shadow:none; }
+.btn-ghost:hover { border-color:var(--white); }
+.btn:disabled { background:#252525; color:#555; border-color:#444; box-shadow:none; cursor:default; transform:none !important; }
+/* TOP BAR */
+.top-bar { display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #333; padding-bottom:0.8rem; }
+.tl { font-family:var(--f); font-weight:900; font-size:1.4rem; text-transform:uppercase; letter-spacing:-0.01em; }
+/* ROOM CODE PILL — big and prominent */
+.pill { background:var(--white); color:var(--black); font-family:var(--f); font-weight:900; font-size:1.1rem; letter-spacing:0.18em; padding:0.3rem 0.7rem; border:3px solid var(--white); cursor:pointer; white-space:nowrap; }
+.pill:hover { background:var(--black); color:var(--white); }
+/* SECTION LABEL */
+.sl-label { font-weight:700; font-size:0.65rem; letter-spacing:0.22em; text-transform:uppercase; color:var(--gray); margin-bottom:0.4rem; }
+/* PLAYER CHIPS */
+.player-list { display:flex; flex-direction:column; gap:0.4rem; }
+.pchip { display:flex; align-items:center; gap:0.7rem; background:var(--dim); border-left:4px solid #444; padding:0.55rem 0.8rem; animation:slideIn 0.3s ease both; }
+.pchip.you { border-left-color:var(--white); }
+.pchip.is-host { border-left-color:var(--white); }
+.avatar { width:30px; height:30px; flex-shrink:0; background:#333; border:2px solid #555; font-family:var(--f); font-weight:900; font-size:0.85rem; display:flex; align-items:center; justify-content:center; text-transform:uppercase; }
+.pchip.you .avatar, .pchip.is-host .avatar { background:var(--white); color:var(--black); border-color:var(--white); }
+.chip-name { font-family:var(--f); font-weight:700; font-size:1rem; text-transform:uppercase; flex:1; letter-spacing:0.02em; }
+.badge { font-family:var(--f); font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; padding:0.15rem 0.4rem; font-weight:700; }
+.badge-host, .badge-you { background:var(--white); color:var(--black); }
+.kick-btn { background:none; border:1px solid #555; color:#666; font-family:var(--f); font-size:0.65rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.15rem 0.4rem; cursor:pointer; font-weight:700; }
+.kick-btn:hover { border-color:#cc3333; color:#cc3333; }
+/* SCORE BAR */
+.score-bar { display:flex; gap:0.4rem; overflow-x:auto; padding-bottom:0.2rem; }
+.sc { flex-shrink:0; background:var(--dim); border:2px solid #444; display:flex; align-items:center; gap:0.35rem; padding:0.25rem 0.5rem; font-family:var(--f); }
+.sc.you { border-color:var(--white); }
+.sc .sc-n { font-weight:700; font-size:0.8rem; text-transform:uppercase; }
+.sc .sc-p { background:var(--white); color:var(--black); font-weight:900; font-size:0.75rem; padding:0.05rem 0.35rem; min-width:18px; text-align:center; }
+/* LETTER PROMPT */
+.letter-prompt { display:flex; align-items:center; gap:0.9rem; background:var(--white); color:var(--black); padding:0.8rem 1rem; border:3px solid var(--white); }
+.die { width:52px; height:52px; background:var(--black); color:var(--white); border:3px solid var(--black); display:flex; align-items:center; justify-content:center; font-family:var(--f); font-weight:900; font-size:2rem; flex-shrink:0; animation:diePop 0.4s cubic-bezier(0.2,0.8,0.2,1.3) both; }
+@keyframes diePop { from { transform:rotate(90deg) scale(0.3); opacity:0; } to { transform:none; opacity:1; } }
+.lp-text { font-family:var(--f); font-weight:700; font-size:0.9rem; letter-spacing:0.02em; text-transform:uppercase; line-height:1.3; color:var(--black); }
+/* ANSWER INPUT */
+.answer-wrap { display:flex; border:3px solid var(--white); }
+.answer-prefix { background:var(--white); color:var(--black); font-family:var(--f); font-weight:900; font-size:1.6rem; width:50px; display:flex; align-items:center; justify-content:center; flex-shrink:0; border-right:3px solid var(--white); }
+.answer-input { flex:1; background:var(--dim); color:var(--white); border:none; font-family:var(--f); font-weight:700; font-size:1.15rem; padding:0.65rem 0.8rem; outline:none; text-transform:uppercase; }
+.answer-input::placeholder { color:#444; font-weight:400; text-transform:none; }
+/* SHIT LIST BOARD */
+.sl-board { background:#111; border:2px solid #333; padding:0.8rem; }
+.sl-board-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; }
+.sl-title { font-family:var(--f); font-weight:900; font-size:0.9rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--white); }
+.sl-count-text { font-size:0.7rem; letter-spacing:0.12em; color:var(--gray); text-transform:uppercase; font-weight:700; }
+.sl-words { display:flex; flex-wrap:wrap; gap:0.35rem; }
+.sl-word { background:var(--white); color:var(--black); font-family:var(--f); font-weight:900; font-size:0.85rem; letter-spacing:0.04em; text-transform:uppercase; padding:0.2rem 0.55rem; border:2px solid var(--white); animation:wordPop 0.4s cubic-bezier(0.2,0.8,0.2,1.5) both; }
+.sl-word.crossed { background:#222; color:#555; border-color:#333; text-decoration:line-through; text-decoration-color:#cc3333; }
+@keyframes wordPop { from { transform:scale(0) rotate(-8deg); opacity:0; } to { transform:none; opacity:1; } }
+.sl-empty { font-size:0.75rem; color:#444; text-transform:uppercase; letter-spacing:0.1em; font-weight:700; }
+/* REVEAL */
+.reveal-list { display:flex; flex-direction:column; gap:0.5rem; }
+.ritem { display:flex; align-items:center; gap:0.7rem; padding:0.65rem 0.8rem; background:var(--dim); border-left:4px solid #444; animation:slideIn 0.3s ease both; }
+.ritem.match { border-left-color:var(--white); background:#1e1e1e; }
+.ritem.nomatch { border-left-color:#cc3333; }
+.r-player { font-family:var(--f); font-weight:700; font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gray); min-width:60px; }
+.r-answer { font-family:var(--f); font-weight:900; font-size:1.1rem; text-transform:uppercase; flex:1; letter-spacing:0.02em; }
+.r-badge { font-size:0.65rem; letter-spacing:0.1em; text-transform:uppercase; padding:0.15rem 0.4rem; font-weight:900; font-family:var(--f); }
+.r-badge.win { background:var(--white); color:var(--black); }
+.r-badge.lose { background:#cc3333; color:var(--white); }
+/* ACT BANNER */
+.act-banner { background:var(--white); color:var(--black); text-align:center; padding:1.2rem; border:3px solid var(--white); }
+.act-banner h2 { font-family:var(--f); font-weight:900; font-size:2rem; text-transform:uppercase; letter-spacing:-0.01em; line-height:1; }
+.act-banner p { font-family:var(--f); font-weight:700; font-size:0.85rem; letter-spacing:0.08em; text-transform:uppercase; color:#555; margin-top:0.3rem; }
+/* WORD PICKER */
+.word-picker { display:flex; flex-wrap:wrap; gap:0.4rem; }
+.wp-word { background:var(--dim); color:var(--white); border:3px solid #444; font-family:var(--f); font-weight:900; font-size:0.95rem; letter-spacing:0.03em; text-transform:uppercase; padding:0.45rem 0.7rem; cursor:pointer; transition:all 0.1s; }
+.wp-word:hover { border-color:var(--white); }
+.wp-word.selected { background:var(--white); color:var(--black); border-color:var(--white); }
+.wp-word.crossed { background:#111; color:#444; border-color:#333; text-decoration:line-through; cursor:default; pointer-events:none; }
+/* STATUS */
+.status-box { background:var(--dim); border-left:4px solid var(--white); padding:0.65rem 0.9rem; font-size:0.85rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gray); font-weight:700; }
+.pulse-row { display:flex; align-items:center; gap:0.5rem; font-size:0.85rem; letter-spacing:0.08em; color:var(--gray); text-transform:uppercase; font-weight:700; }
+.dot { width:6px; height:6px; background:var(--white); border-radius:50%; animation:blink 1.2s infinite; flex-shrink:0; }
+.dot:nth-child(2){animation-delay:0.2s} .dot:nth-child(3){animation-delay:0.4s}
+@keyframes blink { 0%,80%,100%{opacity:0.15} 40%{opacity:1} }
+/* HOST PANEL */
+.host-panel { border:2px dashed #333; padding:0.8rem; display:flex; flex-direction:column; gap:0.5rem; }
+.host-panel-label { font-size:0.6rem; letter-spacing:0.22em; color:#555; text-transform:uppercase; font-weight:700; }
+/* DIVIDER */
+.divider { display:flex; align-items:center; gap:0.7rem; font-weight:700; font-size:0.7rem; letter-spacing:0.15em; color:#444; }
+.divider::before,.divider::after { content:''; flex:1; height:2px; background:#2a2a2a; }
+/* ERROR */
+.err { background:#cc3333; color:var(--white); font-weight:700; font-size:0.85rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.6rem 0.9rem; display:none; }
+.err.show { display:block; }
+/* WIN */
+#screen-win { align-items:center; justify-content:center; text-align:center; gap:1.2rem; }
+.win-crown { font-size:4rem; animation:trophyIn 0.5s cubic-bezier(0.2,0.8,0.2,1.4) both; }
+@keyframes trophyIn { from{transform:scale(0) rotate(-20deg);opacity:0} to{transform:none;opacity:1} }
+.win-hl { font-family:var(--f); font-weight:900; font-size:clamp(2rem,10vw,3rem); text-transform:uppercase; line-height:0.95; letter-spacing:-0.01em; }
+.win-hl .winner { color:var(--white); display:block; }
+.win-word-big { background:var(--white); color:var(--black); font-family:var(--f); font-weight:900; font-size:2rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.4rem 1.2rem; border:3px solid var(--white); }
+.win-sub { font-size:0.9rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--gray); max-width:300px; line-height:1.5; font-weight:700; }
+/* QR MODAL */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:1000; align-items:center; justify-content:center; padding:1.5rem; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--white); color:var(--black); padding:1.5rem; max-width:300px; width:100%; text-align:center; }
+.modal h3 { font-family:var(--f); font-weight:900; font-size:1.4rem; text-transform:uppercase; letter-spacing:0.02em; margin-bottom:0.3rem; }
+.modal canvas { display:block; margin:0.8rem auto; }
+.modal-code { font-family:var(--f); font-weight:900; font-size:2rem; letter-spacing:0.2em; margin:0.3rem 0; background:#ddd; padding:0.4rem 0.6rem; }
+.modal-hint { font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; color:#666; margin-top:0.3rem; font-weight:700; }
+.modal-close { margin-top:0.8rem; font-family:var(--f); font-weight:900; font-size:1rem; letter-spacing:0.08em; text-transform:uppercase; background:var(--black); color:var(--white); border:3px solid var(--black); padding:0.5rem 1rem; cursor:pointer; width:100%; }
+/* RECONNECT */
+.reconnect-banner { background:#cc3333; color:var(--white); font-family:var(--f); font-weight:700; font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; padding:0.5rem 1rem; text-align:center; display:none; position:fixed; top:0; left:0; right:0; z-index:500; }
+.reconnect-banner.show { display:block; }
+/* CODE TAG (in-game top bar) */
+.code-tag { font-family:var(--f); font-weight:900; font-size:0.95rem; letter-spacing:0.15em; background:var(--white); color:var(--black); padding:0.2rem 0.5rem; border:2px solid var(--white); cursor:pointer; white-space:nowrap; }
+.code-tag:hover { background:var(--black); color:var(--white); }
+/* GAME MODE TOGGLE */
+.mode-toggle { display:flex; border:3px solid var(--white); overflow:hidden; }
+.mode-btn { flex:1; font-family:var(--f); font-weight:900; font-size:0.85rem; letter-spacing:0.04em; text-transform:uppercase; padding:0.55rem 0.5rem; border:none; background:var(--black); color:#555; cursor:pointer; transition:background 0.1s, color 0.1s; }
+.mode-btn + .mode-btn { border-left:2px solid var(--white); }
+.mode-btn.active { background:var(--white); color:var(--black); }
+/* MATCH OVERRIDE */
+.ritem .match-toggle { background:none; border:2px solid #555; color:#777; font-family:var(--f); font-size:0.65rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:0.15rem 0.4rem; cursor:pointer; flex-shrink:0; }
+.ritem .match-toggle:hover { border-color:var(--white); color:var(--white); }
+.ritem.forced-match .match-toggle { border-color:var(--white); color:var(--white); }
+.ritem.forced-nomatch .match-toggle { border-color:#cc3333; color:#cc3333; }
+.ritem.forced-pending { border-left-color:var(--white); background:#1a1a1a; outline:2px solid var(--white); }
+.ritem.forced-pending .match-toggle { border-color:var(--white); color:var(--white); }
+/* MISC */
+.spacer { flex:1; }
+.small-hint { font-size:0.75rem; letter-spacing:0.04em; color:var(--gray); text-transform:uppercase; font-weight:700; }
+@keyframes slideIn { from{opacity:0;transform:translateX(-15px)} to{opacity:1;transform:none} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+.fade-up { animation:fadeUp 0.4s ease both; }
+</style>
+</head>
+<body>
+
+<div class="reconnect-banner" id="reconnect-banner">Connection lost — reconnecting…</div>
+
+<div class="modal-overlay" id="qr-modal">
+  <div class="modal">
+    <h3>Scan to Join</h3>
+    <canvas id="qr-canvas"></canvas>
+    <div class="modal-code" id="qr-code-display"></div>
+    <div class="modal-hint">Paste this code on the join screen</div>
+    <button class="modal-close" onclick="document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="htp-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:340px;max-height:85dvh;overflow-y:auto;text-align:left;">
+    <h3 style="text-align:center;margin-bottom:1rem;">HOW TO PLAY</h3>
+    <div style="font-family:var(--f);font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.3rem;">The Goal</div>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:1rem;">Write the same answer as <em>exactly one</em> other player. Match everyone? Too obvious. Match nobody? Too weird. Hit the sweet spot and your word goes on the Shit List.</p>
+    <div style="font-family:var(--f);font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.3rem;">Act I — Build Up</div>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">A black card is drawn and a letter is rolled. Everyone secretly writes an answer starting with that letter.</p>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">Answers are revealed. If exactly two players wrote the same thing, that word goes on the Shit List and both score a point.</p>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">Act I ends when the Shit List has 7 words, or after 7 rounds.</p>
+    <div style="background:#1a1a1a;border-left:3px solid #555;padding:0.6rem 0.8rem;margin-bottom:0.5rem;">
+      <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#aaa;margin-bottom:0.3rem;"><strong style="color:var(--white);">Similar answers count.</strong> Extremely similar answers still count as a match — like Boobies/A boob, or Murder/Murdering. Use host controls to pair them.</p>
+      <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#aaa;margin-bottom:0.3rem;"><strong style="color:var(--white);">Two pairs on one card.</strong> If two separate pairs match on different answers, both pairs win points and both words go on the Shit List.</p>
+      <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#aaa;margin-bottom:0;"><strong style="color:var(--white);">Don't reuse words.</strong> Don't write a word that's already on the Shit List.</p>
+    </div>
+    <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#555;margin-bottom:1rem;">If there's more than one two-person match in the final round, only the first one goes on the Shit List — but all matches still score points.</p>
+    <div style="font-family:var(--f);font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.3rem;">Act II — Tear Down</div>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">A new card is drawn. Everyone picks a word from the Shit List. The goal is to pick the <em>most popular</em> answer.</p>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">The most common answer is crossed off and everyone who picked it scores a point. Ties mean nobody scores and the word stays.</p>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:1rem;">Last word standing wins. That player becomes the Champion of that word forever.</p>
+    <div style="font-family:var(--f);font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.3rem;">Host Controls</div>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:1rem;">After each round the host can override matches — tap two answers to pair them, or tap a paired answer to dissolve the pair.</p>
+    <button class="modal-close" onclick="document.getElementById('htp-modal').classList.remove('open')">GOT IT</button>
+  </div>
+</div>
+
+<!-- ENTRY -->
+<div id="screen-entry" class="screen active">
+  <div style="margin-top:1.5rem;margin-bottom:0.3rem;">
+    <div class="logo" style="font-size:clamp(4rem,18vw,7rem);">SHIT<br>LIST</div>
+    <div style="font-family:var(--f);font-size:0.75rem;letter-spacing:0.25em;text-transform:uppercase;color:var(--gray);margin-top:0.3rem;">A Cards Against Humanity Twist</div>
+  </div>
+  <div class="field"><label>Your Name</label><input type="text" id="inp-name" placeholder="Something regrettable" maxlength="18" autocomplete="off"></div>
+  <button class="btn btn-white" onclick="createGame()">CREATE GAME</button>
+  <div class="divider">or join existing</div>
+  <div class="field"><label>Room Code</label><input type="text" id="inp-code" placeholder="Paste code here" maxlength="36" autocomplete="off"></div>
+  <button class="btn btn-ghost" onclick="joinGame()">JOIN GAME</button>
+  <div class="err" id="entry-err"></div>
+  <div class="spacer"></div>
+  <div style="text-align:center;padding-bottom:1rem;display:flex;flex-direction:column;gap:0.6rem;">
+    <button class="btn btn-ghost" onclick="document.getElementById('htp-modal').classList.add('open')" style="font-size:0.9rem;">HOW TO PLAY</button>
+    <a href="https://www.cardsagainsthumanity.com/products/shit-list" target="_blank" style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;font-weight:700;color:var(--white);text-decoration:underline;text-underline-offset:3px;text-align:center;">Buy the real Shit List game →</a>
+    <div style="font-family:var(--f);font-size:0.6rem;letter-spacing:0.1em;color:#333;text-transform:uppercase;">P2P · No server · Free forever</div>
+  </div>
+</div>
+
+<!-- CONNECTING -->
+<div id="screen-connecting" class="screen">
+  <div class="spacer"></div>
+  <div class="pulse-row" style="justify-content:center;"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span id="connecting-msg">Connecting…</span></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- LOBBY -->
+<div id="screen-lobby" class="screen">
+  <div class="top-bar">
+    <div class="tl">SHITLIST</div>
+    <div class="pill" id="lobby-pill" onclick="openQR()">CODE</div>
+  </div>
+  <div><div class="sl-label">Players (<span id="lobby-count">0</span>/8)</div><div class="player-list" id="lobby-players"></div></div>
+  <div class="pulse-row" id="lobby-wait-msg"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Waiting for host to start…</span></div>
+  <div class="spacer"></div>
+  <div style="display:flex;gap:0.5rem;">
+    <button class="btn btn-ghost" onclick="document.getElementById('htp-modal').classList.add('open')" style="font-size:0.9rem;flex:1;">HOW TO PLAY</button>
+    <button class="btn btn-ghost" onclick="leaveGame()" style="font-size:0.9rem;flex:1;">LEAVE</button>
+  </div>
+  <div class="host-panel" id="host-start-panel" style="display:none">
+    <div class="host-panel-label">Host Controls — only you see this</div>
+    <div>
+      <div class="sl-label" style="margin-bottom:0.4rem;">Game Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-btn-both" onclick="setMode('both')">Act I + Act II</button>
+        <button class="mode-btn" id="mode-btn-act1" onclick="setMode('act1only')">Act I Only</button>
+      </div>
+    </div>
+    <button class="btn btn-white" id="btn-start" onclick="hostStartGame()" disabled>Need 2+ players</button>
+    <button class="btn btn-ghost" onclick="openQR()" style="font-size:1rem;">SHOW QR CODE</button>
+  </div>
+</div>
+
+<!-- WRITING -->
+<div id="screen-writing" class="screen">
+  <div class="top-bar">
+    <div class="tl">SHITLIST</div>
+    <div style="display:flex;align-items:center;gap:0.5rem;">
+      <div style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.15em;color:var(--gray);text-transform:uppercase;">Act I · Round <span id="w-round">?</span>/7</div>
+      <span class="code-tag" onclick="openQR()" id="w-code-tag">????</span>
+    </div>
+  </div>
+  <div class="score-bar" id="w-scores"></div>
+  <div class="black-card fade-up"><div class="cb" id="w-card"></div><div class="cc">CAH INTL</div></div>
+  <div class="letter-prompt"><div class="die" id="w-die">?</div><div class="lp-text">Answer must start with<br><strong id="w-letter-label">?</strong></div></div>
+  <div>
+    <div class="sl-label">Your Answer</div>
+    <div class="answer-wrap"><div class="answer-prefix" id="w-prefix">?</div><input class="answer-input" id="w-answer" placeholder="Type your answer…" maxlength="28" autocomplete="off" oninput="onAnswerInput(this)" onkeydown="if(event.key==='Enter')lockAnswer()"></div>
+    <div class="small-hint" style="margin-top:0.4rem;">Match exactly ONE other player</div>
+  </div>
+  <button class="btn btn-white" id="btn-lock" onclick="lockAnswer()" disabled>LOCK IT IN</button>
+  <div class="status-box" id="w-status" style="display:none">Locked — waiting for others… <span id="w-status-count" style="color:var(--white)"></span></div>
+  <div class="sl-board">
+    <div class="sl-board-header"><div class="sl-title">THE SHIT LIST</div><div class="sl-count-text"><span id="w-sl-count">0</span>/7</div></div>
+    <div class="sl-words" id="w-sl-words"><div class="sl-empty">No words yet…</div></div>
+  </div>
+</div>
+
+<!-- REVEAL -->
+<div id="screen-reveal" class="screen">
+  <div class="top-bar"><div class="tl">SHITLIST</div><div style="display:flex;align-items:center;gap:0.5rem;"><div style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.15em;color:var(--gray);text-transform:uppercase;">Round Reveal</div><span class="code-tag" onclick="openQR()" id="r-code-tag">????</span></div></div>
+  <div class="score-bar" id="r-scores"></div>
+  <div style="font-family:var(--f);font-weight:900;font-size:1.4rem;text-transform:uppercase;border-bottom:2px solid #2a2a2a;padding-bottom:0.5rem;">Answers</div>
+  <div class="reveal-list" id="r-reveals"></div>
+  <div class="sl-board">
+    <div class="sl-board-header"><div class="sl-title">THE SHIT LIST</div><div class="sl-count-text"><span id="r-sl-count">0</span>/7</div></div>
+    <div class="sl-words" id="r-sl-words"></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="host-panel" id="r-host-panel" style="display:none">
+    <div class="host-panel-label">Host Controls — tap answers to override matches</div>
+    <div class="reveal-list" id="r-host-overrides"></div>
+    <button class="btn btn-white" id="btn-next-round" onclick="hostNextRound()">NEXT ROUND →</button>
+  </div>
+  <div class="pulse-row" id="r-wait"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Waiting for host…</span></div>
+</div>
+
+<!-- ACT II -->
+<div id="screen-act2" class="screen">
+  <div class="top-bar"><div class="tl">SHITLIST</div><div style="display:flex;align-items:center;gap:0.5rem;"><div style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.15em;color:var(--gray);text-transform:uppercase;">Act II · Round <span id="a2-round">?</span></div><span class="code-tag" onclick="openQR()" id="a2-code-tag">????</span></div></div>
+  <div class="score-bar" id="a2-scores"></div>
+  <div class="act-banner"><h2>ACT II<br>THE TEAR DOWN</h2><p>Pick the most popular answer</p></div>
+  <div class="black-card fade-up"><div class="cb" id="a2-card"></div><div class="cc">CAH INTL</div></div>
+  <div><div class="sl-label">Choose from the Shit List</div><div class="word-picker" id="a2-words"></div></div>
+  <button class="btn btn-white" id="btn-a2-lock" onclick="lockAct2()" disabled>LOCK IT IN</button>
+  <div class="status-box" id="a2-status" style="display:none">Locked — waiting for others…</div>
+</div>
+
+<!-- ACT II REVEAL -->
+<div id="screen-a2reveal" class="screen">
+  <div class="top-bar"><div class="tl">SHITLIST</div><div style="display:flex;align-items:center;gap:0.5rem;"><div style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.15em;color:var(--gray);text-transform:uppercase;">Act II Reveal</div><span class="code-tag" onclick="openQR()" id="a2r-code-tag">????</span></div></div>
+  <div class="score-bar" id="a2r-scores"></div>
+  <div style="font-family:var(--f);font-weight:900;font-size:1.4rem;text-transform:uppercase;border-bottom:2px solid #2a2a2a;padding-bottom:0.5rem;">Most Common Answer</div>
+  <div class="reveal-list" id="a2r-reveals"></div>
+  <div class="sl-board">
+    <div class="sl-board-header"><div class="sl-title">THE SHIT LIST</div><div class="sl-count-text"><span id="a2r-sl-count">?</span> remaining</div></div>
+    <div class="sl-words" id="a2r-sl-words"></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="host-panel" id="a2r-host-panel" style="display:none"><div class="host-panel-label">Host Controls</div><button class="btn btn-white" onclick="hostNextAct2Round()">NEXT ROUND →</button></div>
+  <div class="pulse-row" id="a2r-wait"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Waiting for host…</span></div>
+</div>
+
+<!-- WIN -->
+<div id="screen-win" class="screen">
+  <div class="spacer"></div>
+  <div class="win-name" id="win-name" style="font-family:var(--f);font-weight:900;font-size:1.6rem;text-transform:uppercase;letter-spacing:0.02em;text-align:center;">???</div>
+  <div class="win-hl">CHAMPION OF<span class="winner" id="win-word">???</span></div>
+  <div class="win-word-big" id="win-word-big2">???</div>
+  <div class="win-sub" id="win-sub">…</div>
+  <div class="spacer"></div>
+  <div id="win-host-controls" style="display:none">
+    <button class="btn btn-white" onclick="restartGame()">PLAY AGAIN</button>
+  </div>
+  <div class="pulse-row" id="win-player-wait" style="display:none;justify-content:center;">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span>Waiting for host…</span>
+  </div>
+</div>
+
+<script>
+// Guard
+if (typeof Peer === 'undefined') {
+  document.body.innerHTML = '<div style="padding:2rem;color:#f00;font-family:monospace;">PeerJS failed to load. Check internet connection and refresh.</div>';
+}
+
+// ── CARDS ──
+var CARDS = [
+  "I never thought I'd say this, but __________ is the best thing that's ever happened to me.",
+  "Scientists have just confirmed that __________ causes cancer.",
+  "Coming this summer: one man, one dream, and __________ that won't quit.",
+  "After much deliberation, I've decided to leave my family for __________.",
+  "The leading cause of death in the United States is __________.",
+  "In a pinch, __________ can be used as a contraceptive.",
+  "Why am I sticky? __________.",
+  "I drink to forget __________.",
+  "My therapist says I need to stop obsessing about __________, but I just can't.",
+  "Step 1: __________. Step 2: Profit.",
+  "When you get right down to it, life is really about __________.",
+  "TSA guidelines now prohibit __________ on all flights.",
+  "Next on ESPN: the World Championship of __________.",
+  "Dear Diary: Today I tried __________. No regrets.",
+  "They say you should end every day grateful for __________.",
+  "The secret ingredient is __________.",
+  "In the beginning there was nothing. Then God created __________.",
+  "This is your captain speaking. We are expecting __________.",
+  "I spent three weeks in rehab for my __________ addiction.",
+  "What's the one thing you can always count on? __________.",
+  "At last, scientists have created __________ in the lab.",
+  "How am I still alive? __________.",
+  "My therapist calls it __________. I call it a lifestyle.",
+  "New study: people who __________ live 10 years longer.",
+  "What makes life worth living? __________.",
+  "What gives me uncontrollable gas? __________.",
+  "What ended my last relationship? __________.",
+  "What will always get you laid? __________.",
+  "What's my secret power? __________.",
+  "Why can't I sleep at night? __________.",
+  "What brought the orgy to a grinding halt? __________.",
+  "What's a girl's best friend? __________.",
+  "What do I think about when I masturbate? __________.",
+  "What never fails to liven up the party? __________.",
+  "What left this stain on my couch? __________.",
+  "What's that smell? __________.",
+  "What are my parents hiding from me? __________.",
+  "What made my first kiss so awkward? __________.",
+  "During his midlife crisis, my dad got really into __________.",
+  "What would grandma find disturbing, yet oddly charming? __________.",
+  "What has been making life difficult at the nudist colony? __________.",
+  "What's that sound? __________.",
+  "When all else fails, I can always masturbate to __________.",
+  "War! What is it good for? __________.",
+  "Daddy, why is mommy crying? __________.",
+  "The blind date was going horribly until we discovered our shared interest in __________.",
+  "What do I think about to keep myself from climaxing too early? __________.",
+  "Science will never explain __________.",
+  "What's my most treasured possession? __________.",
+  "I got 99 problems but __________ ain't one.",
+  "Tonight's top story: what you don't know about __________ could kill you.",
+  "What's Batman's guilty pleasure? __________.",
+  "What does Vin Diesel eat for breakfast? __________.",
+  "What did I bring for show and tell? __________.",
+  "How did I lose my virginity? __________.",
+  "What is always the answer? __________.",
+  "Next on Eurosport: the World Championship of __________.",
+  "What do old people smell like? __________.",
+  "A romantic, candlelit dinner would be incomplete without __________.",
+  "Coming to Broadway this season, __________: The Musical.",
+  "In Rome, there are whisperings that the Vatican has a secret room devoted to __________.",
+  "During sex, I like to think about __________.",
+  "Charades was ruined for me when my mom had to act out __________.",
+  "What do I think about when I'm alone? __________.",
+  "I'm sorry, Professor, but I couldn't complete my homework because of __________.",
+  "The theme for next year's Eurovision Song Contest is 'We are __________.'",
+  "Finally! A service that delivers __________ right to your door.",
+  "My mom freaked out when she looked at my browser history and found __________.com/",
+  "The healing process began when I joined a support group for victims of __________.",
+  "I'm no doctor, but I'm pretty sure what you're suffering from is called __________.",
+  "Hey Reddit! I'm __________. Ask me anything.",
+  "But before I kill you, Mr. Bond, I must show you __________.",
+  "In the seventh circle of Hell, sinners must endure __________ for all eternity.",
+  "The class field trip was completely ruined by __________.",
+  "When I am Prime Minister, I will create the Ministry of __________.",
+  "What makes me feel alive? __________.",
+  "When I am a billionaire, I shall erect a 20-meter statue to commemorate __________.",
+  "It's a pity that kids these days are all getting involved with __________.",
+  "What did I put in my mouth when no one was looking? __________.",
+  "The secret to a lasting marriage is communication, communication, and __________.",
+  "Just once, I'd like to hear you say 'Thanks, Mom. Thanks for __________.'",
+  "Netflix's new reality show features twelve hot singles living with __________.",
+  "Well if you'll excuse me, gentlemen, I have a date with __________.",
+  "A successful job interview begins with a firm handshake and ends with __________.",
+  "Why do I hurt all over? __________.",
+  "When I was a child, I feared __________.",
+  "What should a 21-year-old not be addicted to? __________.",
+  "What keeps aristocrats up at night? __________.",
+  "What's always there when I need it? __________.",
+  "I've come to realize that __________ is just a part of life.",
+  "What am I most grateful for? __________.",
+  "I like my coffee like I like my __________.",
+  "What would I bring back from the future? __________.",
+  "What do I find deeply comforting? __________.",
+  "It's a trap! __________.",
+  "What do I find most arousing? __________.",
+  "What's that noise? __________.",
+  "What do I wish I'd known before getting married? __________.",
+  "What's the worst thing about having a body? __________.",
+];
+
+var LETTERS = 'ABCDEFGHIJKLMNPRSTW'.split('');
+var usedCards = [];
+
+function pickCard() {
+  if (usedCards.length >= CARDS.length) usedCards = [];
+  var available = CARDS.filter(function(c){ return usedCards.indexOf(c) === -1; });
+  var c = available[Math.floor(Math.random() * available.length)];
+  usedCards.push(c);
+  return c;
+}
+function pickLetter() { return LETTERS[Math.floor(Math.random() * LETTERS.length)]; }
+
+// ── STATE ──
+var peer = null;
+var myPeerId = null;
+var myName = '';
+var isHost = false;
+var hostConn = null;
+var hostRoomCode = null;
+var playerConns = {};
+
+var gs = {
+  phase: 'lobby', players: [], shitList: [], crossed: [],
+  round: 0, act2round: 0, card: '', letter: '',
+  answers: {}, act2picks: {}, lastWord: '', roomCode: '',
+  gameMode: 'both',
+  matchPairs: [],        // [{keys:[normKey,...], display:rawWord}]
+  hostPairPending: null, // normKey waiting to be paired
+  roundScores: {}, roundWords: []
+};
+
+var myAct2Pick = null;
+
+// ── SCREENS ──
+function show(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  var el = document.getElementById('screen-' + id);
+  if (el) el.classList.add('active');
+}
+function showErr(msg) {
+  var el = document.getElementById('entry-err');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 4000);
+}
+
+// ── PEER INIT ──
+function genCode() {
+  var chars = 'ABCDEFGHJKLMNPRSTUVWXYZ'; // no I/O/Q confusion
+  var code = '';
+  for (var i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function initPeer(onOpen) {
+  var id = isHost ? genCode() : undefined;
+  peer = new Peer(id);
+  peer.on('open', function(id) {
+    console.log('Peer ready, id:', id);
+    myPeerId = id;
+    onOpen(id);
+  });
+  var reconnectAttempts = 0;
+  var maxReconnects = 5;
+  peer.on('disconnected', function() {
+    if (reconnectAttempts >= maxReconnects) {
+      document.getElementById('reconnect-banner').textContent = 'Connection lost — please refresh and rejoin';
+      return;
+    }
+    reconnectAttempts++;
+    document.getElementById('reconnect-banner').classList.add('show');
+    document.getElementById('reconnect-banner').textContent = 'Connection lost — reconnecting (' + reconnectAttempts + '/' + maxReconnects + ')…';
+    setTimeout(function() {
+      if (peer && !peer.destroyed) { try { peer.reconnect(); } catch(e){} }
+    }, 2000);
+  });
+  peer.on('connected', function() {
+    reconnectAttempts = 0;
+    document.getElementById('reconnect-banner').classList.remove('show');
+  });
+  peer.on('error', function(err) {
+    console.error('Peer error:', err.type, err.message);
+    document.getElementById('reconnect-banner').classList.remove('show');
+    if (err.type === 'peer-unavailable') {
+      show('entry'); showErr('Room not found — check the code');
+    } else if (err.type === 'unavailable-id' && isHost) {
+      // Code collision — try again with a new one
+      peer.destroy();
+      initPeer(function(id) {
+        myPeerId = id;
+        gs.players[0].id = myPeerId;
+        showLobby();
+      });
+    } else if (err.type !== 'network' && err.type !== 'disconnected') {
+      show('entry'); showErr('Error: ' + err.type);
+    }
+  });
+  peer.on('connection', function(conn) {
+    if (isHost) setupIncomingConn(conn);
+  });
+}
+
+// ── CREATE ──
+function createGame() {
+  var name = document.getElementById('inp-name').value.trim();
+  if (!name) { showErr('Enter a name first'); return; }
+  myName = name; isHost = true;
+  show('connecting');
+  document.getElementById('connecting-msg').textContent = 'Creating room…';
+  initPeer(function(id) {
+    myPeerId = id;
+    gs.players = [{ id: myPeerId, name: myName, score: 0 }];
+    gs.roomCode = id;
+    showLobby();
+  });
+}
+
+// ── JOIN ──
+function joinGame() {
+  var name = document.getElementById('inp-name').value.trim();
+  var code = document.getElementById('inp-code').value.trim();
+  if (!name) { showErr('Enter a name first'); return; }
+  if (!code) { showErr('Enter a room code'); return; }
+  myName = name; isHost = false; hostRoomCode = code;
+  show('connecting');
+  document.getElementById('connecting-msg').textContent = 'Joining…';
+  initPeer(function() { connectToHost(code); });
+}
+
+function connectToHost(code) {
+  hostConn = peer.connect(code, { reliable: true });
+  hostConn.on('open', function() {
+    document.getElementById('reconnect-banner').classList.remove('show');
+    hostConn.send({ type: 'join', name: myName });
+  });
+  hostConn.on('data', function(data) {
+    if (data.type === 'state') { gs = data.gs; applyState(); }
+    else if (data.type === 'kicked') { peer.destroy(); show('entry'); showErr('You were kicked'); }
+  });
+  hostConn.on('close', function() {
+    document.getElementById('reconnect-banner').classList.add('show');
+    setTimeout(function() { if (hostRoomCode && peer && !peer.destroyed) connectToHost(hostRoomCode); }, 3000);
+  });
+  hostConn.on('error', function(e) { show('entry'); showErr('Could not connect — check the code'); });
+}
+
+// ── HOST INCOMING ──
+function setupIncomingConn(conn) {
+  conn.on('open', function() {
+    playerConns[conn.peer] = conn;
+    conn.send({ type: 'state', gs: gs });
+  });
+  conn.on('data', function(data) { handleHostReceive(conn.peer, data); });
+  conn.on('close', function() {
+    delete playerConns[conn.peer];
+    gs.players = gs.players.filter(function(p){ return p.id !== conn.peer; });
+    broadcastState();
+    if (gs.phase === 'writing') checkAllAnswered();
+    if (gs.phase === 'act2') checkAllAct2Picked();
+  });
+}
+
+function handleHostReceive(peerId, data) {
+  if (data.type === 'join') {
+    if (!gs.players.find(function(p){ return p.id === peerId; })) {
+      gs.players.push({ id: peerId, name: data.name, score: 0 });
+    }
+    broadcastState();
+  } else if (data.type === 'answer') {
+    gs.answers[peerId] = data.answer;
+    broadcastState();
+    checkAllAnswered();
+  } else if (data.type === 'act2pick') {
+    gs.act2picks[peerId] = data.word;
+    broadcastState();
+    checkAllAct2Picked();
+  }
+}
+
+function broadcastState() {
+  var msg = { type: 'state', gs: gs };
+  Object.values(playerConns).forEach(function(conn) {
+    try { conn.send(msg); } catch(e) {}
+  });
+  applyState();
+}
+
+function sendToHost(msg) {
+  if (isHost) { handleHostReceive(myPeerId, msg); }
+  else if (hostConn && hostConn.open) { hostConn.send(msg); }
+}
+
+// ── HOST GAME LOGIC ──
+function setMode(mode) {
+  gs.gameMode = mode;
+  document.getElementById('mode-btn-both').classList.toggle('active', mode === 'both');
+  document.getElementById('mode-btn-act1').classList.toggle('active', mode === 'act1only');
+}
+
+function hostStartGame() {
+  gs.phase = 'writing'; gs.round = 1; gs.shitList = []; gs.crossed = [];
+  gs.answers = {}; gs.card = pickCard(); gs.letter = pickLetter();
+  gs.roundScores = {}; gs.roundWords = {}; gs.matchPairs = []; gs.hostPairPending = null;
+  broadcastState();
+}
+
+function checkAllAnswered() {
+  if (Object.keys(gs.answers).length >= gs.players.length) {
+    setTimeout(resolveRound, 600);
+  }
+}
+
+function resolveRound() {
+  var counts = {};
+  Object.values(gs.answers).forEach(function(a) {
+    var k = norm(a); counts[k] = (counts[k] || 0) + 1;
+  });
+  // Auto-detect exact matches (count === 2) and store as pairs
+  // matchPairs: array of {keys: [normKey, normKey], display: rawAnswer}
+  gs.matchPairs = [];
+  var paired = {};
+  Object.keys(counts).forEach(function(k) {
+    if (counts[k] === 2 && !paired[k]) {
+      paired[k] = true;
+      // Find the raw answer for display
+      var raw = Object.values(gs.answers).find(function(a){ return norm(a) === k; }) || k;
+      gs.matchPairs.push({ keys: [k], display: raw });
+    }
+  });
+  gs.hostPairPending = null; // key awaiting a second selection
+  applyMatchPairs();
+  gs.phase = 'reveal';
+  broadcastState();
+}
+
+function applyMatchPairs() {
+  var pairs = gs.matchPairs || [];
+
+  // Reset this round's scores
+  gs.players.forEach(function(p) {
+    if (gs.roundScores && gs.roundScores[p.id] !== undefined) {
+      p.score -= gs.roundScores[p.id];
+    }
+  });
+  gs.roundScores = {};
+
+  // Build set of all matched normKeys
+  var matchedKeys = {};
+  pairs.forEach(function(pair) {
+    pair.keys.forEach(function(k) { matchedKeys[k] = true; });
+  });
+
+  // Award points
+  Object.entries(gs.answers).forEach(function(entry) {
+    var pid = entry[0], ans = entry[1];
+    if (matchedKeys[norm(ans)]) {
+      var p = gs.players.find(function(p){ return p.id === pid; });
+      if (p) {
+        gs.roundScores[pid] = (gs.roundScores[pid] || 0) + 1;
+        p.score++;
+      }
+    }
+  });
+
+  // Rebuild this round's shit list entries — one word per pair
+  gs.shitList = gs.shitList.filter(function(w){
+    return !gs.roundWords || gs.roundWords.indexOf(w) === -1;
+  });
+  gs.roundWords = [];
+  pairs.forEach(function(pair) {
+    if (gs.shitList.length >= 7) return;
+    var word = pair.display;
+    if (gs.shitList.indexOf(word) === -1) {
+      gs.shitList.push(word);
+      gs.roundWords.push(word);
+    }
+  });
+}
+
+// Host clicks an answer in the override UI to pair/unpair it
+function hostTogglePair(rawAns) {
+  var k = norm(rawAns);
+  var pairs = gs.matchPairs || [];
+
+  // Is this key already in a pair?
+  var existingPairIdx = -1;
+  pairs.forEach(function(pair, i) {
+    if (pair.keys.indexOf(k) !== -1) existingPairIdx = i;
+  });
+
+  if (existingPairIdx !== -1) {
+    // Always dissolve the entire pair cleanly — both keys become UNPAIRED
+    pairs.splice(existingPairIdx, 1);
+    gs.hostPairPending = null;
+  } else if (gs.hostPairPending === k) {
+    // Tapping SELECTING again — cancel back to UNPAIRED
+    gs.hostPairPending = null;
+  } else if (gs.hostPairPending && gs.hostPairPending !== k) {
+    // Second click — pair pending key with this one
+    var pendingKey = gs.hostPairPending;
+    // Find raw answer for the pending key (display word = whichever was clicked first)
+    var pendingRaw = Object.values(gs.answers).find(function(a){ return norm(a) === pendingKey; }) || pendingKey;
+    // Check if pending key already belongs to a pair — if so, add this key to it
+    var pendingPairIdx = -1;
+    pairs.forEach(function(pair, i) {
+      if (pair.keys.indexOf(pendingKey) !== -1) pendingPairIdx = i;
+    });
+    if (pendingPairIdx !== -1) {
+      pairs[pendingPairIdx].keys.push(k);
+    } else {
+      pairs.push({ keys: [pendingKey, k], display: pendingRaw });
+    }
+    gs.hostPairPending = null;
+  } else {
+    // First click on an unpaired answer — check if there are other unpaired answers to choose from
+    var allKeys2 = Object.values(gs.answers).map(function(a){ return norm(a); });
+    var uniqueKeys2 = allKeys2.filter(function(nk, i, arr){ return arr.indexOf(nk) === i; });
+    var pairedKeys2 = {};
+    pairs.forEach(function(p){ p.keys.forEach(function(pk){ pairedKeys2[pk] = true; }); });
+    var otherUnpaired2 = uniqueKeys2.filter(function(nk){ return nk !== k && !pairedKeys2[nk]; });
+
+    if (otherUnpaired2.length === 0) {
+      // No other answers to pair with — immediately create a single-key match
+      var raw2 = Object.values(gs.answers).find(function(a){ return norm(a) === k; }) || k;
+      pairs.push({ keys: [k], display: raw2 });
+      gs.hostPairPending = null;
+    } else {
+      // Other options exist — enter SELECTING state so host can pick the partner
+      gs.hostPairPending = k;
+    }
+  }
+
+  gs.matchPairs = pairs;
+  applyMatchPairs();
+  broadcastState();
+}
+
+function hostNextRound() {
+  gs.roundScores = {}; gs.roundWords = []; gs.matchPairs = []; gs.hostPairPending = null;
+  var actIDone = gs.shitList.length >= 7 || gs.round >= 7;
+  if (actIDone && gs.gameMode === 'both') {
+    gs.phase = 'act2'; gs.act2round = 1; gs.act2picks = {};
+    gs.crossed = []; gs.card = pickCard(); gs.answers = {};
+  } else if (actIDone && gs.gameMode === 'act1only') {
+    // Go straight to win — highest score wins, last word on list is the title
+    gs.lastWord = gs.shitList[gs.shitList.length - 1] || 'NOTHING';
+    gs.phase = 'win';
+  } else {
+    gs.round++; gs.phase = 'writing'; gs.answers = {};
+    gs.card = pickCard(); gs.letter = pickLetter();
+  }
+  broadcastState();
+}
+
+function checkAllAct2Picked() {
+  if (Object.keys(gs.act2picks).length >= gs.players.length) {
+    setTimeout(resolveAct2, 600);
+  }
+}
+
+function resolveAct2() {
+  var counts = {};
+  Object.values(gs.act2picks).forEach(function(w){ counts[w] = (counts[w]||0)+1; });
+  var vals = Object.values(counts);
+  var max = vals.length ? Math.max.apply(null, vals) : 0;
+  var top = Object.keys(counts).filter(function(k){ return counts[k] === max; });
+  if (top.length === 1) {
+    var winner = top[0];
+    Object.entries(gs.act2picks).forEach(function(e) {
+      var pid=e[0], w=e[1];
+      if (w === winner) { var p = gs.players.find(function(p){ return p.id===pid; }); if(p) p.score++; }
+    });
+    gs.crossed.push(winner);
+  }
+  var remaining = gs.shitList.filter(function(w){ return gs.crossed.indexOf(w)===-1; });
+  if (remaining.length <= 1) {
+    gs.lastWord = remaining[0] || gs.shitList[gs.shitList.length-1];
+    gs.phase = 'win';
+  } else {
+    gs.phase = 'a2reveal';
+  }
+  broadcastState();
+}
+
+function hostNextAct2Round() {
+  gs.act2round++; gs.act2picks = {}; gs.phase = 'act2'; gs.card = pickCard();
+  broadcastState();
+}
+
+function leaveGame() {
+  if (isHost) {
+    // Host leaving — notify all players then destroy
+    Object.values(playerConns).forEach(function(conn) {
+      try { conn.send({ type: 'kicked' }); } catch(e) {}
+    });
+    setTimeout(function() {
+      if (peer && !peer.destroyed) peer.destroy();
+    }, 300);
+  } else {
+    if (hostConn) { try { hostConn.close(); } catch(e) {} }
+    if (peer && !peer.destroyed) peer.destroy();
+  }
+  // Reset local state and go back to entry
+  peer = null; myPeerId = null; isHost = false; hostConn = null; hostRoomCode = null; playerConns = {};
+  gs = { phase:'lobby', players:[], shitList:[], crossed:[], round:0, act2round:0, card:'', letter:'', answers:{}, act2picks:{}, lastWord:'', roomCode:'', gameMode:'both', matchPairs:[], roundScores:{}, roundWords:[], hostPairPending:null };
+  show('entry');
+}
+
+function hostKick(peerId) {
+  var conn = playerConns[peerId];
+  if (conn) { try { conn.send({ type: 'kicked' }); } catch(e) {} setTimeout(function(){ conn.close(); }, 300); }
+  delete playerConns[peerId];
+  gs.players = gs.players.filter(function(p){ return p.id !== peerId; });
+  broadcastState();
+}
+
+function restartGame() {
+  if (!isHost) return;
+  gs = {
+    phase: 'lobby',
+    players: gs.players.map(function(p){ return { id:p.id, name:p.name, score:0 }; }),
+    shitList:[], crossed:[], round:0, act2round:0,
+    card:'', letter:'', answers:{}, act2picks:{}, lastWord:'',
+    roomCode: gs.roomCode, gameMode: gs.gameMode,
+    matchPairs:[], roundScores:{}, roundWords:[], hostPairPending: null
+  };
+  broadcastState();
+}
+
+// ── PLAYER ACTIONS ──
+function onAnswerInput(inp) {
+  // No forcing - let them type freely, just enable/disable the button
+  document.getElementById('btn-lock').disabled = inp.value.trim().length < 1;
+}
+
+function lockAnswer() {
+  var raw = document.getElementById('w-answer').value.trim().toUpperCase();
+  if (!raw) return;
+  // If they forgot the letter, prepend it silently
+  var val = raw;
+  if (val[0] !== gs.letter) val = gs.letter + val;
+  document.getElementById('w-answer').value = val;
+  document.getElementById('w-answer').disabled = true;
+  document.getElementById('btn-lock').disabled = true;
+  document.getElementById('w-status').style.display = 'block';
+  sendToHost({ type: 'answer', answer: val });
+}
+
+function lockAct2() {
+  if (!myAct2Pick) return;
+  document.getElementById('btn-a2-lock').disabled = true;
+  document.getElementById('a2-status').style.display = 'block';
+  sendToHost({ type: 'act2pick', word: myAct2Pick });
+}
+
+function selectAct2Word(btn, word) {
+  document.querySelectorAll('.wp-word:not(.crossed)').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  myAct2Pick = word;
+  document.getElementById('btn-a2-lock').disabled = false;
+}
+
+// ── STATE → UI ──
+function updateCodeTags() {
+  var code = gs.roomCode || '????';
+  ['w-code-tag','r-code-tag','a2-code-tag','a2r-code-tag'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = code;
+  });
+}
+
+function applyState() {
+  document.getElementById('reconnect-banner').classList.remove('show');
+  updateCodeTags();
+  if (gs.phase === 'lobby') showLobby();
+  else if (gs.phase === 'writing') { show('writing'); renderWriting(); }
+  else if (gs.phase === 'reveal') { show('reveal'); renderReveal(); }
+  else if (gs.phase === 'act2') { show('act2'); renderAct2(); }
+  else if (gs.phase === 'a2reveal') { show('a2reveal'); renderA2Reveal(); }
+  else if (gs.phase === 'win') { show('win'); renderWin(); }
+}
+
+// ── RENDER ──
+function showLobby() {
+  show('lobby');
+  var code = gs.roomCode || '…';
+  document.getElementById('lobby-pill').textContent = code;
+  document.getElementById('lobby-count').textContent = gs.players.length;
+  var list = document.getElementById('lobby-players');
+  list.innerHTML = '';
+  gs.players.forEach(function(p, i) {
+    var you = p.id === myPeerId, host = i === 0;
+    var div = document.createElement('div');
+    div.className = 'pchip' + (you?' you':'') + (host?' is-host':'');
+    div.style.animationDelay = (i*0.07)+'s';
+    div.innerHTML = '<div class="avatar">'+esc(p.name[0])+'</div><div class="chip-name">'+esc(p.name)+'</div>'
+      +(host?'<span class="badge badge-host">HOST</span>':'')
+      +(you?'<span class="badge badge-you">YOU</span>':'')
+      +(isHost&&!you&&gs.phase==='lobby'?'<button class="kick-btn" onclick="hostKick(\''+p.id+'\')">KICK</button>':'');
+    list.appendChild(div);
+  });
+  if (isHost) {
+    document.getElementById('host-start-panel').style.display = 'flex';
+    document.getElementById('lobby-wait-msg').style.display = 'none';
+    var btn = document.getElementById('btn-start');
+    var ready = gs.players.length >= 2;
+    btn.disabled = !ready;
+    btn.textContent = ready ? 'START GAME ('+gs.players.length+' players)' : 'Need 2+ players';
+  } else {
+    document.getElementById('host-start-panel').style.display = 'none';
+    document.getElementById('lobby-wait-msg').style.display = 'flex';
+  }
+}
+
+var lastRoundRendered = -1;
+
+function renderWriting() {
+  var answered = Object.keys(gs.answers).length;
+  var myAnswered = !!gs.answers[myPeerId];
+  var isNewRound = gs.round !== lastRoundRendered;
+
+  document.getElementById('w-round').textContent = gs.round;
+  document.getElementById('w-die').textContent = gs.letter;
+  document.getElementById('w-prefix').textContent = gs.letter;
+  document.getElementById('w-letter-label').textContent = 'the letter ' + gs.letter;
+
+  // Only update card and clear input on a genuinely new round
+  if (isNewRound) {
+    lastRoundRendered = gs.round;
+    document.getElementById('w-card').textContent = gs.card;
+    document.getElementById('w-answer').value = '';
+    document.getElementById('w-answer').disabled = false;
+    document.getElementById('btn-lock').disabled = true;
+    document.getElementById('w-status').style.display = 'none';
+    document.getElementById('w-answer').focus();
+  }
+
+  // If I've now answered (just locked in), lock the UI
+  if (myAnswered) {
+    document.getElementById('w-answer').disabled = true;
+    document.getElementById('btn-lock').disabled = true;
+    document.getElementById('w-status').style.display = 'block';
+    document.getElementById('w-status-count').textContent = answered + '/' + gs.players.length + ' answered';
+  } else if (!isNewRound) {
+    // Someone else answered - just update the count if status is showing, don't touch input
+    if (document.getElementById('w-status').style.display === 'block') {
+      document.getElementById('w-status-count').textContent = answered + '/' + gs.players.length + ' answered';
+    }
+  }
+
+  renderScores('w-scores');
+  renderSL('w-sl-words','w-sl-count', false);
+}
+
+function renderReveal() {
+  renderScores('r-scores');
+
+  var pairs = gs.matchPairs || [];
+  var pending = gs.hostPairPending || null;
+
+  // Build a lookup: normKey → pair index
+  var keyToPair = {};
+  pairs.forEach(function(pair, i) {
+    pair.keys.forEach(function(k){ keyToPair[k] = i; });
+  });
+
+  var entries = Object.entries(gs.answers).sort(function(a,b){
+    var ai = keyToPair[norm(a[1])], bi = keyToPair[norm(b[1])];
+    var am = ai !== undefined, bm = bi !== undefined;
+    return (bm?1:0) - (am?1:0);
+  });
+
+  // Public reveal list
+  var list = document.getElementById('r-reveals'); list.innerHTML='';
+  entries.forEach(function(e,i){
+    var pid=e[0], ans=e[1];
+    var p=gs.players.find(function(p){return p.id===pid;}), you=pid===myPeerId;
+    var isMatch = keyToPair[norm(ans)] !== undefined;
+    var div=document.createElement('div');
+    div.className='ritem '+(isMatch?'match':'nomatch');
+    div.style.animationDelay=(i*0.1)+'s';
+    div.innerHTML='<div class="r-player">'+(you?'YOU':esc(p?p.name:'?'))+'</div>'
+      +'<div class="r-answer">'+esc(ans)+'</div>'
+      +'<div class="r-badge '+(isMatch?'win':'lose')+'">'+(isMatch?'+1 MATCH':'NO MATCH')+'</div>';
+    list.appendChild(div);
+  });
+
+  renderSL('r-sl-words','r-sl-count',false);
+
+  if (isHost) {
+    document.getElementById('r-host-panel').style.display='flex';
+    document.getElementById('r-wait').style.display='none';
+
+    // Host pairing UI
+    var overrideList = document.getElementById('r-host-overrides');
+    overrideList.innerHTML = '';
+
+    // Instruction text
+    var instr = document.createElement('div');
+    instr.style.cssText = 'font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:#666;font-weight:700;margin-bottom:0.2rem;';
+    instr.textContent = pending
+      ? 'Now click the answer it matches with…'
+      : 'Tap two answers to pair them as a match. Tap a paired answer to unpair.';
+    overrideList.appendChild(instr);
+
+    // One button per unique answer
+    var seen = {};
+    entries.forEach(function(e) {
+      var ans = e[1], k = norm(ans);
+      if (seen[k]) return; seen[k] = true;
+
+      var pairIdx = keyToPair[k];
+      var isMatched = pairIdx !== undefined;
+      var isPending = pending === k;
+      var isPairedWithPending = pending && isMatched && keyToPair[pending] === pairIdx;
+
+      var div = document.createElement('div');
+      var stateClass = isMatched ? 'forced-match' : (isPending ? 'forced-pending' : 'forced-nomatch');
+      div.className = 'ritem ' + stateClass;
+      div.style.cursor = 'pointer';
+      div.onclick = function() { hostTogglePair(ans); };
+      if (isPending) div.style.outline = '3px solid var(--white)';
+
+      var label = isMatched ? 'PAIRED' : (isPending ? 'SELECTING...' : 'UNPAIRED');
+      div.innerHTML = '<div class="r-answer" style="font-size:1rem;">'+esc(ans)+'</div>'
+        + '<span class="match-toggle">' + label + '</span>';
+      overrideList.appendChild(div);
+    });
+
+    var btn = document.getElementById('btn-next-round');
+    var actIDone = gs.shitList.length >= 7 || gs.round >= 7;
+    btn.textContent = actIDone
+      ? (gs.gameMode === 'both' ? 'START ACT II →' : 'FINISH GAME →')
+      : 'NEXT ROUND (' + gs.round + '/7) →';
+  } else {
+    document.getElementById('r-host-panel').style.display='none';
+    document.getElementById('r-wait').style.display='flex';
+  }
+}
+
+function renderAct2() {
+  document.getElementById('a2-round').textContent = gs.act2round;
+  renderScores('a2-scores');
+
+  var myPicked = !!gs.act2picks[myPeerId];
+  document.getElementById('a2-status').style.display = myPicked ? 'block' : 'none';
+  document.getElementById('btn-a2-lock').disabled = !myAct2Pick || myPicked;
+
+  // Only rebuild the card and word picker on a new Act II round
+  var picker = document.getElementById('a2-words');
+  var currentRound = picker.dataset.round;
+  var isNewRound = String(gs.act2round) !== currentRound;
+
+  if (isNewRound) {
+    picker.dataset.round = gs.act2round;
+    document.getElementById('a2-card').textContent = gs.card;
+    myAct2Pick = null;
+    document.getElementById('btn-a2-lock').disabled = true;
+    document.getElementById('a2-status').style.display = 'none';
+    picker.innerHTML = '';
+    gs.shitList.forEach(function(w){
+      var crossed = gs.crossed.indexOf(w) !== -1;
+      var btn = document.createElement('button');
+      btn.className = 'wp-word' + (crossed ? ' crossed' : '');
+      btn.textContent = w;
+      if (!crossed) btn.onclick = function(){ selectAct2Word(btn, w); };
+      picker.appendChild(btn);
+    });
+  } else if (myPicked) {
+    // Someone else submitted — just mark all buttons non-interactive, keep visual state
+    picker.querySelectorAll('.wp-word:not(.crossed)').forEach(function(b){
+      b.onclick = null;
+    });
+  }
+}
+
+function renderA2Reveal() {
+  renderScores('a2r-scores');
+  var counts={};
+  Object.values(gs.act2picks).forEach(function(w){ counts[w]=(counts[w]||0)+1; });
+  var vals=Object.values(counts), max=vals.length?Math.max.apply(null,vals):0;
+  var top=Object.keys(counts).filter(function(k){return counts[k]===max;});
+  var unique=top.length===1;
+  var list=document.getElementById('a2r-reveals'); list.innerHTML='';
+  var entries=Object.entries(gs.act2picks).sort(function(a,b){return (counts[b[1]]||0)-(counts[a[1]]||0);});
+  entries.forEach(function(e,i){
+    var pid=e[0],w=e[1];
+    var p=gs.players.find(function(p){return p.id===pid;}), you=pid===myPeerId;
+    var isWin=unique&&counts[w]===max;
+    var div=document.createElement('div');
+    div.className='ritem '+(isWin?'match':'nomatch');
+    div.style.animationDelay=(i*0.12)+'s';
+    div.innerHTML='<div class="r-player">'+(you?'YOU':esc(p?p.name:'?'))+'</div>'
+      +'<div class="r-answer">'+esc(w)+'</div>'
+      +'<div class="r-badge '+(isWin?'win':'lose')+'">'+(isWin?'+1 POINT':'NOPE')+'</div>';
+    list.appendChild(div);
+  });
+  if (!unique) {
+    var tie=document.createElement('div');
+    tie.style.cssText='font-family:var(--f);font-size:0.85rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--gray);padding:0.4rem 0;';
+    tie.textContent='— TIE — No word eliminated';
+    list.appendChild(tie);
+  }
+  var remaining=gs.shitList.filter(function(w){return gs.crossed.indexOf(w)===-1;});
+  document.getElementById('a2r-sl-count').textContent=remaining.length;
+  var words=document.getElementById('a2r-sl-words'); words.innerHTML='';
+  gs.shitList.forEach(function(w,i){
+    var div=document.createElement('div');
+    div.className='sl-word'+(gs.crossed.indexOf(w)!==-1?' crossed':'');
+    div.style.animationDelay=(i*0.05)+'s';
+    div.textContent=w; words.appendChild(div);
+  });
+  if (isHost) {
+    document.getElementById('a2r-host-panel').style.display='flex';
+    document.getElementById('a2r-wait').style.display='none';
+  } else {
+    document.getElementById('a2r-host-panel').style.display='none';
+    document.getElementById('a2r-wait').style.display='flex';
+  }
+}
+
+function renderWin() {
+  var sorted=[...gs.players].sort(function(a,b){return b.score-a.score;});
+  var winner=sorted[0];
+  var word=gs.lastWord||gs.shitList[gs.shitList.length-1]||'???';
+  document.getElementById('win-name').textContent = winner ? winner.name.toUpperCase() : '???';
+  document.getElementById('win-word').textContent = word;
+  document.getElementById('win-word-big2').textContent = word;
+  document.getElementById('win-sub').textContent =
+    (winner?winner.name:'?')+' wins with '+winner.score+' point'+(winner.score!==1?'s':'')+
+    ' and shall forevermore be known as the Champion of '+word+'.';
+  document.getElementById('win-host-controls').style.display = isHost ? 'block' : 'none';
+  document.getElementById('win-player-wait').style.display = isHost ? 'none' : 'flex';
+}
+
+function renderScores(elId) {
+  var bar=document.getElementById(elId); bar.innerHTML='';
+  var sorted=[...gs.players].sort(function(a,b){return b.score-a.score;});
+  sorted.forEach(function(p){
+    var you=p.id===myPeerId;
+    var div=document.createElement('div');
+    div.className='sc'+(you?' you':'');
+    div.innerHTML='<span class="sc-n">'+(you?'YOU':esc(p.name))+'</span><span class="sc-p">'+p.score+'</span>';
+    bar.appendChild(div);
+  });
+}
+
+function renderSL(wordsId, countId, withCrossed) {
+  var el = document.getElementById(wordsId);
+  if (countId) document.getElementById(countId).textContent = gs.shitList.length;
+  if (!gs.shitList.length) {
+    el.innerHTML = '<div class="sl-empty">No words yet…</div>';
+    return;
+  }
+
+  // Collect words already rendered in DOM
+  var existingEls = el.querySelectorAll('.sl-word');
+  var existingWords = Array.from(existingEls).map(function(e){ return e.dataset.word; });
+
+  // Check if the set of words changed at all
+  var sameWords = gs.shitList.length === existingWords.length &&
+    gs.shitList.every(function(w){ return existingWords.indexOf(w) !== -1; });
+
+  if (sameWords) {
+    // Just update crossed styling, no DOM rebuild, no animation
+    existingEls.forEach(function(e){
+      var crossed = withCrossed && gs.crossed.indexOf(e.dataset.word) !== -1;
+      e.className = 'sl-word' + (crossed ? ' crossed' : '');
+    });
+    return;
+  }
+
+  // Full rebuild — only newly added words get the pop animation
+  el.innerHTML = '';
+  gs.shitList.forEach(function(w){
+    var isNew = existingWords.indexOf(w) === -1 && existingWords.length > 0;
+    var div = document.createElement('div');
+    div.className = 'sl-word' + (withCrossed && gs.crossed.indexOf(w) !== -1 ? ' crossed' : '');
+    div.dataset.word = w;
+    div.style.animation = isNew ? 'wordPop 0.4s cubic-bezier(0.2,0.8,0.2,1.5) both' : 'none';
+    div.textContent = w;
+    el.appendChild(div);
+  });
+}
+
+// ── QR CODE ──
+function openQR() {
+  var code = gs.roomCode;
+  if (!code) return;
+  var modal = document.getElementById('qr-modal');
+  document.getElementById('qr-code-display').textContent = code;
+  modal.classList.add('open');
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      var canvas = document.getElementById('qr-canvas');
+      if (typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(canvas, code, {
+          width: 180, margin: 2,
+          color: { dark: '#111111', light: '#f5f0e8' }
+        }, function(err) {
+          if (err) { console.error('QR error:', err); canvas.style.display = 'none'; }
+        });
+      }
+    });
+  });
+  modal.onclick = function(e) { if (e.target === modal) modal.classList.remove('open'); };
+}
+
+// ── UTILS ──
+function norm(s){ return (s||'').toUpperCase().trim(); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
