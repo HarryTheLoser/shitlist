@@ -6,7 +6,7 @@
 <title>SHIT LIST</title>
 <!-- PeerJS MUST be in head, no defer, no async -->
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -174,11 +174,10 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
 <div class="modal-overlay" id="qr-modal">
   <div class="modal">
     <h3>Scan to Join</h3>
-    <canvas id="qr-canvas"></canvas>
-    <div id="qr-fallback" style="display:none;font-family:var(--f);font-size:0.65rem;word-break:break-all;background:#eee;padding:0.5rem;margin:0.5rem 0;color:#333;"></div>
+    <div id="qr-container" style="display:flex;justify-content:center;margin:0.8rem 0;"></div>
     <div class="modal-code" id="qr-code-display"></div>
-    <div class="modal-hint">Paste this code on the join screen</div>
-    <button class="modal-close" onclick="var c=document.getElementById('qr-canvas');c.getContext('2d').clearRect(0,0,c.width,c.height);document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
+    <div class="modal-hint" id="qr-hint">Paste this code on the join screen</div>
+    <button class="modal-close" onclick="document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
   </div>
 </div>
 
@@ -254,6 +253,13 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
       <div class="mode-toggle">
         <button class="mode-btn active" id="mode-btn-both" onclick="setMode('both')">Act I + Act II</button>
         <button class="mode-btn" id="mode-btn-act1" onclick="setMode('act1only')">Act I Only</button>
+      </div>
+    </div>
+    <div>
+      <div class="sl-label" style="margin-bottom:0.4rem;">Game Length</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="len-btn-full" onclick="setLength('full')">Full (7 words)</button>
+        <button class="mode-btn" id="len-btn-short" onclick="setLength('short')">Short (4 words)</button>
       </div>
     </div>
     <button class="btn btn-white" id="btn-start" onclick="hostStartGame()" disabled>Need 2+ players</button>
@@ -483,6 +489,7 @@ var gs = {
   round: 0, act2round: 0, card: '', letter: '',
   answers: {}, act2picks: {}, lastWord: '', roomCode: '',
   gameMode: 'both',
+  listSize: 7,         // 7 = full, 4 = short
   matchPairs: [],        // [{keys:[normKey,...], display:rawWord}]
   hostPairPending: null, // normKey waiting to be paired
   roundScores: {}, roundWords: []
@@ -655,6 +662,12 @@ function setMode(mode) {
   document.getElementById('mode-btn-act1').classList.toggle('active', mode === 'act1only');
 }
 
+function setLength(len) {
+  gs.listSize = (len === 'short') ? 4 : 7;
+  document.getElementById('len-btn-full').classList.toggle('active', len === 'full');
+  document.getElementById('len-btn-short').classList.toggle('active', len === 'short');
+}
+
 function hostStartGame() {
   gs.phase = 'writing'; gs.round = 1; gs.shitList = []; gs.crossed = [];
   gs.answers = {}; gs.card = pickCard(); gs.letter = pickLetter();
@@ -726,7 +739,7 @@ function applyMatchPairs() {
   });
   gs.roundWords = [];
   pairs.forEach(function(pair) {
-    if (gs.shitList.length >= 7) return;
+    if (gs.shitList.length >= gs.listSize) return;
     var word = pair.display;
     if (gs.shitList.indexOf(word) === -1) {
       gs.shitList.push(word);
@@ -795,7 +808,7 @@ function hostTogglePair(rawAns) {
 
 function hostNextRound() {
   gs.roundScores = {}; gs.roundWords = []; gs.matchPairs = []; gs.hostPairPending = null;
-  var actIDone = gs.shitList.length >= 7 || gs.round >= 7;
+  var actIDone = gs.shitList.length >= gs.listSize || gs.round >= gs.listSize;
   if (actIDone && gs.gameMode === 'both') {
     gs.phase = 'act2'; gs.act2round = 1; gs.act2picks = {};
     gs.crossed = []; gs.card = pickCard(); gs.answers = {};
@@ -879,7 +892,7 @@ function restartGame() {
     players: gs.players.map(function(p){ return { id:p.id, name:p.name, score:0 }; }),
     shitList:[], crossed:[], round:0, act2round:0,
     card:'', letter:'', answers:{}, act2picks:{}, lastWord:'',
-    roomCode: gs.roomCode, gameMode: gs.gameMode,
+    roomCode: gs.roomCode, gameMode: gs.gameMode, listSize: gs.listSize || 7,
     matchPairs:[], roundScores:{}, roundWords:[], hostPairPending: null
   };
   broadcastState();
@@ -981,6 +994,11 @@ function renderWriting() {
   document.getElementById('w-die').textContent = gs.letter;
   document.getElementById('w-prefix').textContent = gs.letter;
   document.getElementById('w-letter-label').textContent = 'the letter ' + gs.letter;
+  // Update /N display to reflect current listSize
+  var wSlCount = document.getElementById('w-sl-count').parentElement;
+  wSlCount.innerHTML = '<span id="w-sl-count">' + gs.shitList.length + '</span>/' + gs.listSize;
+  var wRoundLabel = document.querySelector('#screen-writing .top-bar div div');
+  if (wRoundLabel) wRoundLabel.innerHTML = 'Act I · Round <span id="w-round">' + gs.round + '</span>/' + gs.listSize;
 
   // Only update card and clear input on a genuinely new round
   if (isNewRound) {
@@ -1086,7 +1104,7 @@ function renderReveal() {
     });
 
     var btn = document.getElementById('btn-next-round');
-    var actIDone = gs.shitList.length >= 7 || gs.round >= 7;
+    var actIDone = gs.shitList.length >= gs.listSize || gs.round >= gs.listSize;
     btn.textContent = actIDone
       ? (gs.gameMode === 'both' ? 'START ACT II →' : 'FINISH GAME →')
       : 'NEXT ROUND (' + gs.round + '/7) →';
@@ -1246,34 +1264,29 @@ function openQR() {
   var code = gs.roomCode;
   if (!code) return;
   var url = 'https://harrytheloser.github.io/shitlist/?join=' + code;
-  var modal = document.getElementById('qr-modal');
   document.getElementById('qr-code-display').textContent = code;
-  document.getElementById('qr-modal').querySelector('.modal-hint').textContent = 'Or enter code ' + code + ' on the join screen';
-  modal.classList.add('open');
-  // Use setTimeout to guarantee modal is painted before canvas draws
+  document.getElementById('qr-hint').textContent = 'Or enter code ' + code + ' on the join screen';
+  document.getElementById('qr-modal').classList.add('open');
+
+  // Clear previous QR and generate fresh one
+  var container = document.getElementById('qr-container');
+  container.innerHTML = '';
   setTimeout(function() {
-    var canvas = document.getElementById('qr-canvas');
-    // Clear any previous QR
-    var ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, url, {
-        width: 200, margin: 2,
-        color: { dark: '#000000', light: '#f0ece0' }
-      }, function(err) {
-        if (err) {
-          console.error('QR error:', err);
-          // Fallback: show the URL as text
-          canvas.style.display = 'none';
-          var fb = document.getElementById('qr-fallback');
-          if (fb) { fb.style.display = 'block'; fb.textContent = url; }
-        } else {
-          canvas.style.display = 'block';
-        }
-      });
+    new QRCode(container, {
+      text: url,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#f0ece0',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }, 50);
+
+  document.getElementById('qr-modal').onclick = function(e) {
+    if (e.target === document.getElementById('qr-modal')) {
+      document.getElementById('qr-modal').classList.remove('open');
     }
-  }, 100);
-  modal.onclick = function(e) { if (e.target === modal) modal.classList.remove('open'); };
+  };
 }
 
 // ── UTILS ──
