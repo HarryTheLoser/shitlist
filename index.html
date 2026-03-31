@@ -1244,14 +1244,16 @@ function renderSL(wordsId, countId, withCrossed) {
 function openQR() {
   var code = gs.roomCode;
   if (!code) return;
+  var url = 'https://harrytheloser.github.io/shitlist/?join=' + code;
   var modal = document.getElementById('qr-modal');
   document.getElementById('qr-code-display').textContent = code;
+  document.getElementById('qr-modal').querySelector('.modal-hint').textContent = 'Or enter code ' + code + ' on the join screen';
   modal.classList.add('open');
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       var canvas = document.getElementById('qr-canvas');
       if (typeof QRCode !== 'undefined') {
-        QRCode.toCanvas(canvas, code, {
+        QRCode.toCanvas(canvas, url, {
           width: 180, margin: 2,
           color: { dark: '#111111', light: '#f5f0e8' }
         }, function(err) {
@@ -1266,6 +1268,17 @@ function openQR() {
 // ── UTILS ──
 function norm(s){ return (s||'').toUpperCase().trim(); }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── AUTO-FILL FROM URL ──
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var joinCode = params.get('join');
+  if (joinCode) {
+    document.getElementById('inp-code').value = joinCode.toUpperCase();
+    // Scroll the join field into view so it's obvious
+    document.getElementById('inp-code').focus();
+  }
+})();
 </script>
 </body>
 </html>
