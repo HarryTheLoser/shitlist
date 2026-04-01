@@ -176,7 +176,10 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
     <h3>Scan to Join</h3>
     <div id="qr-container" style="display:flex;justify-content:center;margin:0.8rem 0;"></div>
     <div class="modal-code" id="qr-code-display"></div>
-    <div class="modal-hint" id="qr-hint">Paste this code on the join screen</div>
+    <div id="qr-link-wrap" style="margin:0.5rem 0;text-align:center;">
+      <a id="qr-link" href="#" target="_blank" style="font-family:var(--f);font-size:0.7rem;letter-spacing:0.05em;color:#444;text-decoration:underline;word-break:break-all;"></a>
+    </div>
+    <div class="modal-hint" id="qr-hint">Or share the link above</div>
     <button class="modal-close" onclick="document.getElementById('qr-modal').classList.remove('open')">CLOSE</button>
   </div>
 </div>
@@ -189,7 +192,7 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
     <div style="font-family:var(--f);font-weight:900;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:0.3rem;">Act I — Build Up</div>
     <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">A black card is drawn and a letter is rolled. Everyone secretly writes an answer starting with that letter.</p>
     <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">Answers are revealed. If exactly two players wrote the same thing, that word goes on the Shit List and both score a point.</p>
-    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">Act I ends when the Shit List has 7 words, or after 7 rounds.</p>
+    <p style="font-family:var(--f);font-size:0.85rem;line-height:1.5;color:#444;margin-bottom:0.5rem;">Act I ends when the Shit List is full, or after enough rounds to fill it.</p>
     <div style="background:#1a1a1a;border-left:3px solid #555;padding:0.6rem 0.8rem;margin-bottom:0.5rem;">
       <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#aaa;margin-bottom:0.3rem;"><strong style="color:var(--white);">Similar answers count.</strong> Extremely similar answers still count as a match — like Boobies/A boob, or Murder/Murdering. Use host controls to pair them.</p>
       <p style="font-family:var(--f);font-size:0.8rem;line-height:1.5;color:#aaa;margin-bottom:0.3rem;"><strong style="color:var(--white);">Two pairs on one card.</strong> If two separate pairs match on different answers, both pairs win points and both words go on the Shit List.</p>
@@ -463,7 +466,7 @@ var CARDS = [
   "What's the worst thing about having a body? __________.",
 ];
 
-var LETTERS = 'ABCDEFGHIJKLMNPRSTW'.split('');
+var LETTERS = 'STINCOAGHEFPDMWLBR'.split('');
 var usedCards = [];
 
 function pickCard() {
@@ -1265,7 +1268,9 @@ function openQR() {
   if (!code) return;
   var url = 'https://harrytheloser.github.io/shitlist/?join=' + code;
   document.getElementById('qr-code-display').textContent = code;
-  document.getElementById('qr-hint').textContent = 'Or enter code ' + code + ' on the join screen';
+  document.getElementById('qr-link').textContent = url;
+  document.getElementById('qr-link').href = url;
+  document.getElementById('qr-hint').textContent = 'Or share the link above';
   document.getElementById('qr-modal').classList.add('open');
 
   // Clear previous QR and generate fresh one
