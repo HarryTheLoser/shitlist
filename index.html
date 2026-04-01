@@ -265,7 +265,7 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
         <button class="mode-btn" id="len-btn-short" onclick="setLength('short')">Short (4 words)</button>
       </div>
     </div>
-    <button class="btn btn-white" id="btn-start" onclick="hostStartGame()" disabled>Need 2+ players</button>
+    <button class="btn btn-white" id="btn-start" onclick="hostStartGame()" disabled>Need 3+ players</button>
     <button class="btn btn-ghost" onclick="openQR()" style="font-size:1rem;">SHOW QR CODE</button>
   </div>
 </div>
@@ -977,9 +977,9 @@ function showLobby() {
     document.getElementById('host-start-panel').style.display = 'flex';
     document.getElementById('lobby-wait-msg').style.display = 'none';
     var btn = document.getElementById('btn-start');
-    var ready = gs.players.length >= 2;
+    var ready = gs.players.length >= 3;
     btn.disabled = !ready;
-    btn.textContent = ready ? 'START GAME ('+gs.players.length+' players)' : 'Need 2+ players';
+    btn.textContent = ready ? 'START GAME ('+gs.players.length+' players)' : 'Need 3+ players';
   } else {
     document.getElementById('host-start-panel').style.display = 'none';
     document.getElementById('lobby-wait-msg').style.display = 'flex';
