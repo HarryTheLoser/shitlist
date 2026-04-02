@@ -159,6 +159,12 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
 .ritem.forced-nomatch .match-toggle { border-color:#cc3333; color:#cc3333; }
 .ritem.forced-pending { border-left-color:var(--white); background:#1a1a1a; outline:2px solid var(--white); }
 .ritem.forced-pending .match-toggle { border-color:var(--white); color:var(--white); }
+/* ROUNDS INPUT */
+.rounds-input-wrap { display:flex; align-items:center; gap:0.6rem; margin-top:0.4rem; }
+.rounds-input-wrap input[type=number] { width:70px; border:3px solid var(--white); background:var(--black); color:var(--white); font-family:var(--f); font-weight:900; font-size:1.1rem; padding:0.4rem 0.6rem; outline:none; text-align:center; -moz-appearance:textfield; }
+.rounds-input-wrap input[type=number]::-webkit-inner-spin-button, .rounds-input-wrap input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; }
+.rounds-input-wrap input[type=number]:focus { box-shadow:4px 4px 0 var(--white); }
+.rounds-input-wrap label { font-weight:700; font-size:0.8rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--gray); }
 /* MISC */
 .spacer { flex:1; }
 .small-hint { font-size:0.75rem; letter-spacing:0.04em; color:var(--gray); text-transform:uppercase; font-weight:700; }
@@ -259,10 +265,14 @@ body::after { content:''; position:fixed; inset:0; background-image:url("data:im
       </div>
     </div>
     <div>
-      <div class="sl-label" style="margin-bottom:0.4rem;">Game Length</div>
+      <div class="sl-label" style="margin-bottom:0.4rem;">Act I Round Limit</div>
       <div class="mode-toggle">
-        <button class="mode-btn active" id="len-btn-full" onclick="setLength('full')">Full (7 words)</button>
-        <button class="mode-btn" id="len-btn-short" onclick="setLength('short')">Short (4 words)</button>
+        <button class="mode-btn active" id="rlimit-btn-list" onclick="setRoundLimit('list')">Fill the List</button>
+        <button class="mode-btn" id="rlimit-btn-set" onclick="setRoundLimit('set')">Set Number</button>
+      </div>
+      <div class="rounds-input-wrap" id="rounds-input-wrap" style="display:none;">
+        <input type="number" id="inp-max-rounds" min="1" max="99" value="10" oninput="onMaxRoundsInput(this)">
+        <label>rounds</label>
       </div>
     </div>
     <button class="btn btn-white" id="btn-start" onclick="hostStartGame()" disabled>Need 3+ players</button>
@@ -492,9 +502,10 @@ var gs = {
   round: 0, act2round: 0, card: '', letter: '',
   answers: {}, act2picks: {}, lastWord: '', roomCode: '',
   gameMode: 'both',
-  listSize: 7,         // 7 = full, 4 = short
-  matchPairs: [],        // [{keys:[normKey,...], display:rawWord}]
-  hostPairPending: null, // normKey waiting to be paired
+  roundMode: 'list',   // 'list' = fill the list (7 words), 'set' = fixed number of rounds
+  maxRounds: 10,       // used when roundMode === 'set'
+  matchPairs: [],
+  hostPairPending: null,
   roundScores: {}, roundWords: []
 };
 
@@ -665,16 +676,23 @@ function setMode(mode) {
   document.getElementById('mode-btn-act1').classList.toggle('active', mode === 'act1only');
 }
 
-function setLength(len) {
-  gs.listSize = (len === 'short') ? 4 : 7;
-  document.getElementById('len-btn-full').classList.toggle('active', len === 'full');
-  document.getElementById('len-btn-short').classList.toggle('active', len === 'short');
+
+function setRoundLimit(mode) {
+  gs.roundMode = mode;
+  document.getElementById('rlimit-btn-list').classList.toggle('active', mode === 'list');
+  document.getElementById('rlimit-btn-set').classList.toggle('active', mode === 'set');
+  document.getElementById('rounds-input-wrap').style.display = (mode === 'set') ? 'flex' : 'none';
+}
+
+function onMaxRoundsInput(inp) {
+  var v = parseInt(inp.value, 10);
+  if (!isNaN(v) && v >= 1) gs.maxRounds = v;
 }
 
 function hostStartGame() {
   gs.phase = 'writing'; gs.round = 1; gs.shitList = []; gs.crossed = [];
   gs.answers = {}; gs.card = pickCard(); gs.letter = pickLetter();
-  gs.roundScores = {}; gs.roundWords = {}; gs.matchPairs = []; gs.hostPairPending = null;
+  gs.roundScores = {}; gs.roundWords = []; gs.matchPairs = []; gs.hostPairPending = null;
   broadcastState();
 }
 
@@ -742,7 +760,7 @@ function applyMatchPairs() {
   });
   gs.roundWords = [];
   pairs.forEach(function(pair) {
-    if (gs.shitList.length >= gs.listSize) return;
+    if (gs.shitList.length >= 7) return;
     var word = pair.display;
     if (gs.shitList.indexOf(word) === -1) {
       gs.shitList.push(word);
@@ -811,7 +829,9 @@ function hostTogglePair(rawAns) {
 
 function hostNextRound() {
   gs.roundScores = {}; gs.roundWords = []; gs.matchPairs = []; gs.hostPairPending = null;
-  var actIDone = gs.shitList.length >= gs.listSize || gs.round >= gs.listSize;
+  var listFull = gs.shitList.length >= 7;
+  var roundLimitHit = gs.roundMode === 'set' && gs.round >= gs.maxRounds;
+  var actIDone = listFull || roundLimitHit;
   if (actIDone && gs.gameMode === 'both') {
     gs.phase = 'act2'; gs.act2round = 1; gs.act2picks = {};
     gs.crossed = []; gs.card = pickCard(); gs.answers = {};
@@ -876,7 +896,7 @@ function leaveGame() {
   }
   // Reset local state and go back to entry
   peer = null; myPeerId = null; isHost = false; hostConn = null; hostRoomCode = null; playerConns = {};
-  gs = { phase:'lobby', players:[], shitList:[], crossed:[], round:0, act2round:0, card:'', letter:'', answers:{}, act2picks:{}, lastWord:'', roomCode:'', gameMode:'both', matchPairs:[], roundScores:{}, roundWords:[], hostPairPending:null };
+  gs = { phase:'lobby', players:[], shitList:[], crossed:[], round:0, act2round:0, card:'', letter:'', answers:{}, act2picks:{}, lastWord:'', roomCode:'', gameMode:'both', roundMode:'list', maxRounds:10, matchPairs:[], roundScores:{}, roundWords:[], hostPairPending:null };
   show('entry');
 }
 
@@ -895,7 +915,8 @@ function restartGame() {
     players: gs.players.map(function(p){ return { id:p.id, name:p.name, score:0 }; }),
     shitList:[], crossed:[], round:0, act2round:0,
     card:'', letter:'', answers:{}, act2picks:{}, lastWord:'',
-    roomCode: gs.roomCode, gameMode: gs.gameMode, listSize: gs.listSize || 7,
+    roomCode: gs.roomCode, gameMode: gs.gameMode,
+    roundMode: gs.roundMode || 'list', maxRounds: gs.maxRounds || 10,
     matchPairs:[], roundScores:{}, roundWords:[], hostPairPending: null
   };
   broadcastState();
@@ -980,6 +1001,12 @@ function showLobby() {
     var ready = gs.players.length >= 3;
     btn.disabled = !ready;
     btn.textContent = ready ? 'START GAME ('+gs.players.length+' players)' : 'Need 3+ players';
+    // Sync round limit UI
+    var rl = gs.roundMode || 'list';
+    document.getElementById('rlimit-btn-list').classList.toggle('active', rl === 'list');
+    document.getElementById('rlimit-btn-set').classList.toggle('active', rl === 'set');
+    document.getElementById('rounds-input-wrap').style.display = (rl === 'set') ? 'flex' : 'none';
+    document.getElementById('inp-max-rounds').value = gs.maxRounds || 10;
   } else {
     document.getElementById('host-start-panel').style.display = 'none';
     document.getElementById('lobby-wait-msg').style.display = 'flex';
@@ -999,9 +1026,12 @@ function renderWriting() {
   document.getElementById('w-letter-label').textContent = 'the letter ' + gs.letter;
   // Update /N display to reflect current listSize
   var wSlCount = document.getElementById('w-sl-count').parentElement;
-  wSlCount.innerHTML = '<span id="w-sl-count">' + gs.shitList.length + '</span>/' + gs.listSize;
+  wSlCount.innerHTML = '<span id="w-sl-count">' + gs.shitList.length + '</span>/' + 7;
   var wRoundLabel = document.querySelector('#screen-writing .top-bar div div');
-  if (wRoundLabel) wRoundLabel.innerHTML = 'Act I · Round <span id="w-round">' + gs.round + '</span>/' + gs.listSize;
+  if (wRoundLabel) {
+    var roundSuffix = gs.roundMode === 'set' ? '/' + gs.maxRounds : '';
+    wRoundLabel.innerHTML = 'Act I · Round <span id="w-round">' + gs.round + '</span>' + roundSuffix;
+  }
 
   // Only update card and clear input on a genuinely new round
   if (isNewRound) {
@@ -1107,10 +1137,13 @@ function renderReveal() {
     });
 
     var btn = document.getElementById('btn-next-round');
-    var actIDone = gs.shitList.length >= gs.listSize || gs.round >= gs.listSize;
+    var listFull = gs.shitList.length >= 7;
+    var roundLimitHit = gs.roundMode === 'set' && gs.round >= gs.maxRounds;
+    var actIDone = listFull || roundLimitHit;
+    var roundLabel = gs.roundMode === 'set' ? gs.round + '/' + gs.maxRounds : gs.round;
     btn.textContent = actIDone
       ? (gs.gameMode === 'both' ? 'START ACT II →' : 'FINISH GAME →')
-      : 'NEXT ROUND (' + gs.round + '/7) →';
+      : 'NEXT ROUND (' + roundLabel + ') →';
   } else {
     document.getElementById('r-host-panel').style.display='none';
     document.getElementById('r-wait').style.display='flex';
