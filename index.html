@@ -1013,12 +1013,13 @@ function showLobby() {
   }
 }
 
-var lastRoundRendered = -1;
+var lastRoundKey = '';
 
 function renderWriting() {
   var answered = Object.keys(gs.answers).length;
   var myAnswered = !!gs.answers[myPeerId];
-  var isNewRound = gs.round !== lastRoundRendered;
+  var roundKey = (gs.roomCode || '') + ':' + gs.round;
+  var isNewRound = roundKey !== lastRoundKey;
 
   document.getElementById('w-round').textContent = gs.round;
   document.getElementById('w-die').textContent = gs.letter;
@@ -1035,7 +1036,7 @@ function renderWriting() {
 
   // Only update card and clear input on a genuinely new round
   if (isNewRound) {
-    lastRoundRendered = gs.round;
+    lastRoundKey = roundKey;
     document.getElementById('w-card').textContent = gs.card;
     document.getElementById('w-answer').value = '';
     document.getElementById('w-answer').disabled = false;
@@ -1160,11 +1161,11 @@ function renderAct2() {
 
   // Only rebuild the card and word picker on a new Act II round
   var picker = document.getElementById('a2-words');
-  var currentRound = picker.dataset.round;
-  var isNewRound = String(gs.act2round) !== currentRound;
+  var roundKey = (gs.roomCode || '') + ':' + gs.act2round;
+  var isNewRound = picker.dataset.roundKey !== roundKey;
 
   if (isNewRound) {
-    picker.dataset.round = gs.act2round;
+    picker.dataset.roundKey = roundKey;
     document.getElementById('a2-card').textContent = gs.card;
     myAct2Pick = null;
     document.getElementById('btn-a2-lock').disabled = true;
