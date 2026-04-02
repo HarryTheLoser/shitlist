@@ -501,7 +501,7 @@ var gs = {
   phase: 'lobby', players: [], shitList: [], crossed: [],
   round: 0, act2round: 0, card: '', letter: '',
   answers: {}, act2picks: {}, lastWord: '', roomCode: '',
-  gameMode: 'both',
+  gameMode: 'both', gameId: 1,
   roundMode: 'list',   // 'list' = fill the list (7 words), 'set' = fixed number of rounds
   maxRounds: 10,       // used when roundMode === 'set'
   matchPairs: [],
@@ -915,7 +915,7 @@ function restartGame() {
     players: gs.players.map(function(p){ return { id:p.id, name:p.name, score:0 }; }),
     shitList:[], crossed:[], round:0, act2round:0,
     card:'', letter:'', answers:{}, act2picks:{}, lastWord:'',
-    roomCode: gs.roomCode, gameMode: gs.gameMode,
+    roomCode: gs.roomCode, gameMode: gs.gameMode, gameId: (gs.gameId || 1) + 1,
     roundMode: gs.roundMode || 'list', maxRounds: gs.maxRounds || 10,
     matchPairs:[], roundScores:{}, roundWords:[], hostPairPending: null
   };
@@ -1018,7 +1018,7 @@ var lastRoundKey = '';
 function renderWriting() {
   var answered = Object.keys(gs.answers).length;
   var myAnswered = !!gs.answers[myPeerId];
-  var roundKey = (gs.roomCode || '') + ':' + gs.round;
+  var roundKey = (gs.gameId || 1) + ':' + gs.round;
   var isNewRound = roundKey !== lastRoundKey;
 
   document.getElementById('w-round').textContent = gs.round;
@@ -1161,7 +1161,7 @@ function renderAct2() {
 
   // Only rebuild the card and word picker on a new Act II round
   var picker = document.getElementById('a2-words');
-  var roundKey = (gs.roomCode || '') + ':' + gs.act2round;
+  var roundKey = (gs.gameId || 1) + ':' + gs.act2round;
   var isNewRound = picker.dataset.roundKey !== roundKey;
 
   if (isNewRound) {
